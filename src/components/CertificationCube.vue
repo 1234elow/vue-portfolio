@@ -42,6 +42,7 @@ const autoRotationY = ref(0)
 const lastMouseX = ref(0)
 const lastMouseY = ref(0)
 let animationId = null
+let interactionTimeout = null
 
 const faces = ref([
   {
@@ -76,16 +77,41 @@ const faces = ref([
   }
 ])
 
+// Clear any existing timeout
+const clearInteractionTimeout = () => {
+  if (interactionTimeout) {
+    clearTimeout(interactionTimeout)
+    interactionTimeout = null
+  }
+}
+
+// Set interaction end with timeout
+const setInteractionEnd = () => {
+  clearInteractionTimeout()
+  interactionTimeout = setTimeout(() => {
+    isUserInteracting.value = false
+  }, 5000) // Resume auto rotation after 5 seconds
+}
+
 // Mouse drag handlers
 const handleMouseDown = (event) => {
   isDragging.value = true
   isUserInteracting.value = true
   lastMouseX.value = event.clientX
   lastMouseY.value = event.clientY
+  clearInteractionTimeout()
   event.preventDefault()
+  
+  // Add global mouse listeners
+  document.addEventListener('mousemove', handleGlobalMouseMove)
+  document.addEventListener('mouseup', handleGlobalMouseUp)
 }
 
 const handleMouseMove = (event) => {
+  // This is for the cube element only - global handler takes care of dragging
+}
+
+const handleGlobalMouseMove = (event) => {
   if (!isDragging.value) return
   
   const deltaX = event.clientX - lastMouseX.value
@@ -99,10 +125,16 @@ const handleMouseMove = (event) => {
 }
 
 const handleMouseUp = () => {
+  // This is for the cube element only - global handler takes care of mouse up
+}
+
+const handleGlobalMouseUp = () => {
   isDragging.value = false
-  setTimeout(() => {
-    isUserInteracting.value = false
-  }, 2000) // Resume auto rotation after 2 seconds
+  setInteractionEnd()
+  
+  // Remove global listeners
+  document.removeEventListener('mousemove', handleGlobalMouseMove)
+  document.removeEventListener('mouseup', handleGlobalMouseUp)
 }
 
 // Touch handlers for mobile
@@ -113,6 +145,7 @@ const handleTouchStart = (event) => {
     const touch = event.touches[0]
     lastMouseX.value = touch.clientX
     lastMouseY.value = touch.clientY
+    clearInteractionTimeout()
     event.preventDefault()
   }
 }
@@ -134,9 +167,7 @@ const handleTouchMove = (event) => {
 
 const handleTouchEnd = () => {
   isDragging.value = false
-  setTimeout(() => {
-    isUserInteracting.value = false
-  }, 2000) // Resume auto rotation after 2 seconds
+  setInteractionEnd()
 }
 
 // Auto rotation animation
@@ -156,6 +187,10 @@ onUnmounted(() => {
   if (animationId) {
     cancelAnimationFrame(animationId)
   }
+  clearInteractionTimeout()
+  // Clean up global listeners if component is unmounted during drag
+  document.removeEventListener('mousemove', handleGlobalMouseMove)
+  document.removeEventListener('mouseup', handleGlobalMouseUp)
 })
 </script>
 
