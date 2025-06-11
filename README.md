@@ -60,4 +60,4 @@ Edit the components in `src/components/` to customize:
 - Personal information throughout components
 - Animation timings and effects
 
-Built with ❤️ using modern web technologies.
+Built with modern web technologies.
