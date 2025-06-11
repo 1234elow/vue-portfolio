@@ -102,7 +102,7 @@ const handleMouseUp = () => {
   isDragging.value = false
   setTimeout(() => {
     isUserInteracting.value = false
-  }, 1000) // Resume auto rotation after 1 second
+  }, 2000) // Resume auto rotation after 2 seconds
 }
 
 // Touch handlers for mobile
@@ -136,14 +136,14 @@ const handleTouchEnd = () => {
   isDragging.value = false
   setTimeout(() => {
     isUserInteracting.value = false
-  }, 1000)
+  }, 2000) // Resume auto rotation after 2 seconds
 }
 
 // Auto rotation animation
 const updateAutoRotation = () => {
   if (!isUserInteracting.value) {
-    autoRotationX.value += 0.1
-    autoRotationY.value += 0.1
+    autoRotationX.value += 0.03
+    autoRotationY.value += 0.03
   }
   animationId = requestAnimationFrame(updateAutoRotation)
 }
