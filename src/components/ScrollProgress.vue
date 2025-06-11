@@ -36,9 +36,17 @@
       />
     </svg>
     
-    <!-- Percentage Text -->
-    <div class="text-xs font-semibold text-primary-green z-10">
-      {{ Math.round(scrollPercent) }}%
+    <!-- Progress Percentage or Up Arrow -->
+    <div class="text-xs font-semibold text-primary-green z-10 flex items-center justify-center">
+      <!-- Show arrow when at 100%, percentage otherwise -->
+      <i 
+        v-if="scrollPercent >= 100" 
+        class="fas fa-chevron-up text-primary-green text-lg animate-bounce"
+      ></i>
+      <span 
+        v-else 
+        class="text-primary-green font-semibold"
+      >{{ Math.round(scrollPercent) }}%</span>
     </div>
   </div>
 </template>
