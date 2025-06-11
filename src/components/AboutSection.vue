@@ -48,7 +48,7 @@ const animatedStats = ref({
   certifications: 0
 })
 
-const animateCounter = (property, target, duration = 2000) => {
+const animateCounter = (property, target, duration = 1500) => {
   const isDecimal = target.toString().includes('.')
   let start = 0
   const increment = target / (duration / 16)

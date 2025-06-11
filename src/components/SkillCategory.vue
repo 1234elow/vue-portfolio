@@ -11,10 +11,11 @@
         
         <div class="skill-progress-bar w-full h-3 bg-dark-gray rounded-full overflow-hidden relative">
           <div 
-            class="skill-progress-fill h-full bg-gradient-to-r from-primary-green to-light-green rounded-full relative transition-all duration-1000 ease-out group-hover:shadow-lg group-hover:shadow-primary-green/50 group-hover:scale-y-110"
+            class="skill-progress-fill h-full bg-gradient-to-r from-primary-green to-light-green rounded-full relative group-hover:shadow-lg group-hover:shadow-primary-green/50 group-hover:scale-y-110"
             :style="{ 
-              width: skill.isAnimated ? `${skill.level}%` : '0%',
-              boxShadow: '0 0 10px rgba(0, 255, 136, 0.5)'
+              width: skill.currentWidth + '%',
+              boxShadow: '0 0 10px rgba(0, 255, 136, 0.5)',
+              transition: 'transform 0.3s ease'
             }"
           >
             <!-- Shimmer effect -->
@@ -35,23 +36,26 @@ const props = defineProps({
 })
 
 const skillCategoryRef = ref(null)
-const animatedSkills = ref(props.skills.map(skill => ({ ...skill, currentLevel: 0, isAnimated: false })))
+const animatedSkills = ref(props.skills.map(skill => ({ ...skill, currentLevel: 0, currentWidth: 0, isAnimated: false })))
 
-const animatePercentageCounter = (index, target) => {
+const animateSkillProgress = (index, target) => {
   let start = 0
-  const duration = 1000
+  const duration = 1500 // Increased duration for better mobile sync
   const increment = target / (duration / 16)
   
-  const updateCounter = () => {
+  const updateProgress = () => {
     start += increment
     if (start < target) {
-      animatedSkills.value[index].currentLevel = Math.ceil(start)
-      requestAnimationFrame(updateCounter)
+      const currentValue = Math.ceil(start)
+      animatedSkills.value[index].currentLevel = currentValue
+      animatedSkills.value[index].currentWidth = start // Smooth progress bar
+      requestAnimationFrame(updateProgress)
     } else {
       animatedSkills.value[index].currentLevel = target
+      animatedSkills.value[index].currentWidth = target
     }
   }
-  updateCounter()
+  updateProgress()
 }
 
 onMounted(() => {
@@ -62,7 +66,7 @@ onMounted(() => {
         animatedSkills.value.forEach((skill, index) => {
           setTimeout(() => {
             skill.isAnimated = true
-            animatePercentageCounter(index, skill.level)
+            animateSkillProgress(index, skill.level)
           }, index * 200) // 200ms stagger between each bar
         })
         
