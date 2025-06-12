@@ -89,9 +89,10 @@
       <div 
         v-if="notification.show" 
         :class="[
-          'fixed top-5 right-5 p-4 rounded-lg shadow-lg z-50 flex items-center gap-3 max-w-sm',
+          'fixed top-5 right-5 sm:top-8 sm:right-8 p-4 rounded-lg shadow-lg z-50 flex items-center gap-3 max-w-xs sm:max-w-sm transform transition-all duration-300',
           notification.type === 'success' ? 'bg-primary-green text-black' : 'bg-red-500 text-white'
         ]"
+        style="margin-right: max(1.25rem, env(safe-area-inset-right)); margin-top: max(1.25rem, env(safe-area-inset-top));"
       >
         <span>{{ notification.message }}</span>
         <button @click="notification.show = false" class="text-xl font-bold">&times;</button>
