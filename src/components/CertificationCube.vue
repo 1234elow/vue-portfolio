@@ -1,13 +1,9 @@
 <template>
   <div class="certification-cube-container flex justify-center items-center h-64 sm:h-80 md:h-96 my-8 sm:my-12" style="perspective: 1000px;">
+    <!-- Larger invisible hit area for easier interaction -->
     <div 
       ref="cubeRef"
-      class="cube relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 transition-all duration-300 hover:scale-110 cursor-grab active:cursor-grabbing" 
-      :style="{
-        transformStyle: 'preserve-3d',
-        transform: `rotateX(${userRotationX + autoRotationY}deg) rotateY(${userRotationY + autoRotationX}deg)`,
-        animation: isUserInteracting ? 'none' : 'rotateCube 20s linear infinite'
-      }"
+      class="cube-interaction-area relative w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 flex items-center justify-center cursor-grab active:cursor-grabbing" 
       @mousedown="handleMouseDown"
       @mousemove="handleMouseMove"
       @mouseup="handleMouseUp"
@@ -15,7 +11,17 @@
       @touchstart="handleTouchStart"
       @touchmove="handleTouchMove"
       @touchend="handleTouchEnd"
+      style="touch-action: none; user-select: none;"
     >
+      <!-- Actual visible cube -->
+      <div 
+        class="cube relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 transition-all duration-300 hover:scale-110" 
+        :style="{
+          transformStyle: 'preserve-3d',
+          transform: `rotateX(${userRotationX + autoRotationY}deg) rotateY(${userRotationY + autoRotationX}deg)`,
+          animation: isUserInteracting ? 'none' : 'rotateCube 20s linear infinite'
+        }"
+      >
       <!-- Cube faces -->
       <div v-for="(face, index) in faces" :key="index" 
            class="face absolute w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 bg-gradient-to-br from-dark-gray/80 to-black/60 border border-primary-green/20 hover:border-primary-green rounded-lg flex flex-col justify-center items-center text-center transition-all duration-300 shadow-lg"
@@ -24,6 +30,7 @@
           <i :class="face.icon" class="text-4xl"></i>
           <span class="text-sm font-semibold leading-tight">{{ face.title }}</span>
         </a>
+      </div>
       </div>
     </div>
   </div>
@@ -100,16 +107,27 @@ const setInteractionEnd = () => {
 
 // Mouse drag handlers
 const handleMouseDown = (event) => {
+  if (event.button !== 0) return // Only handle left mouse button
+  
   isDragging.value = true
   isUserInteracting.value = true
   lastMouseX.value = event.clientX
   lastMouseY.value = event.clientY
   clearInteractionTimeout()
-  event.preventDefault()
   
-  // Add global mouse listeners
-  document.addEventListener('mousemove', handleGlobalMouseMove)
-  document.addEventListener('mouseup', handleGlobalMouseUp)
+  // Reset physics state for new interaction
+  velocityX.value = 0
+  velocityY.value = 0
+  isSpinning.value = false
+  dragHistory = []
+  
+  event.preventDefault()
+  event.stopPropagation()
+  
+  // Add global mouse listeners with passive: false for better control
+  document.addEventListener('mousemove', handleGlobalMouseMove, { passive: false })
+  document.addEventListener('mouseup', handleGlobalMouseUp, { passive: false })
+  document.addEventListener('mouseleave', handleGlobalMouseUp, { passive: false })
 }
 
 const handleMouseMove = (event) => {
@@ -144,26 +162,34 @@ const handleGlobalMouseMove = (event) => {
   const deltaX = event.clientX - lastMouseX.value
   const deltaY = event.clientY - lastMouseY.value
   
+  // Skip if movement is too small (reduces jitter)
+  if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) return
+  
   // Apply rotation with enhanced sensitivity for ragdoll feel
-  const sensitivity = 1.2
+  const sensitivity = 1.5 // Increased for better responsiveness
   userRotationY.value += deltaX * sensitivity
   userRotationX.value -= deltaY * sensitivity
   
-  // Track drag history for velocity calculation
-  dragHistory.push({
-    deltaX: deltaX * sensitivity,
-    deltaY: -deltaY * sensitivity,
-    time: now
-  })
-  
-  // Keep only recent history
-  if (dragHistory.length > 10) {
-    dragHistory.shift()
+  // Track drag history for velocity calculation (only if meaningful movement)
+  if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
+    dragHistory.push({
+      deltaX: deltaX * sensitivity,
+      deltaY: -deltaY * sensitivity,
+      time: now
+    })
+    
+    // Keep only recent history
+    if (dragHistory.length > 8) {
+      dragHistory.shift()
+    }
   }
   
   lastMouseX.value = event.clientX
   lastMouseY.value = event.clientY
   lastMoveTime = now
+  
+  event.preventDefault()
+  event.stopPropagation()
 }
 
 const handleMouseUp = () => {
@@ -202,8 +228,9 @@ const handleGlobalMouseUp = () => {
   dragHistory = []
   
   // Remove global listeners
-  document.removeEventListener('mousemove', handleGlobalMouseMove)
-  document.removeEventListener('mouseup', handleGlobalMouseUp)
+  document.removeEventListener('mousemove', handleGlobalMouseMove, { passive: false })
+  document.removeEventListener('mouseup', handleGlobalMouseUp, { passive: false })
+  document.removeEventListener('mouseleave', handleGlobalMouseUp, { passive: false })
 }
 
 // Touch handlers for mobile
@@ -215,7 +242,15 @@ const handleTouchStart = (event) => {
     lastMouseX.value = touch.clientX
     lastMouseY.value = touch.clientY
     clearInteractionTimeout()
+    
+    // Reset physics state for new interaction
+    velocityX.value = 0
+    velocityY.value = 0
+    isSpinning.value = false
+    dragHistory = []
+    
     event.preventDefault()
+    event.stopPropagation()
   }
 }
 
@@ -227,27 +262,34 @@ const handleTouchMove = (event) => {
   const deltaX = touch.clientX - lastMouseX.value
   const deltaY = touch.clientY - lastMouseY.value
   
+  // Skip if movement is too small (reduces jitter)
+  if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) return
+  
   // Apply rotation with enhanced sensitivity for ragdoll feel
-  const sensitivity = 1.2
+  const sensitivity = 1.8 // Higher sensitivity for touch
   userRotationY.value += deltaX * sensitivity
   userRotationX.value -= deltaY * sensitivity
   
-  // Track drag history for velocity calculation
-  dragHistory.push({
-    deltaX: deltaX * sensitivity,
-    deltaY: -deltaY * sensitivity,
-    time: now
-  })
-  
-  // Keep only recent history
-  if (dragHistory.length > 10) {
-    dragHistory.shift()
+  // Track drag history for velocity calculation (only if meaningful movement)
+  if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
+    dragHistory.push({
+      deltaX: deltaX * sensitivity,
+      deltaY: -deltaY * sensitivity,
+      time: now
+    })
+    
+    // Keep only recent history
+    if (dragHistory.length > 8) {
+      dragHistory.shift()
+    }
   }
   
   lastMouseX.value = touch.clientX
   lastMouseY.value = touch.clientY
   lastMoveTime = now
+  
   event.preventDefault()
+  event.stopPropagation()
 }
 
 const handleTouchEnd = () => {
@@ -324,8 +366,9 @@ onUnmounted(() => {
   isSpinning.value = false
   dragHistory = []
   // Clean up global listeners if component is unmounted during drag
-  document.removeEventListener('mousemove', handleGlobalMouseMove)
-  document.removeEventListener('mouseup', handleGlobalMouseUp)
+  document.removeEventListener('mousemove', handleGlobalMouseMove, { passive: false })
+  document.removeEventListener('mouseup', handleGlobalMouseUp, { passive: false })
+  document.removeEventListener('mouseleave', handleGlobalMouseUp, { passive: false })
 })
 </script>
 
@@ -334,14 +377,26 @@ onUnmounted(() => {
   perspective: 1000px;
 }
 
+.cube-interaction-area {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .cube {
   transform-style: preserve-3d;
   user-select: none;
+  pointer-events: auto;
 }
 
 .face {
   backface-visibility: hidden;
-  pointer-events: none;
+  pointer-events: auto;
+  user-select: none;
 }
 
 /* Responsive cube face transforms */
