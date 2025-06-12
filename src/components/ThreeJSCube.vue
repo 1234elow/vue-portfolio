@@ -184,10 +184,14 @@ const createCube = () => {
     const icon = iconMap[face.icon] || '⭐'
     ctx.fillText(icon, 256, 180)
     
-    // Title text
-    ctx.fillStyle = '#e0e0e0'
-    ctx.font = 'bold 32px Arial'
+    // Title text with better contrast
+    ctx.fillStyle = '#ffffff'  // FORCE WHITE TEXT
+    ctx.font = 'bold 36px Arial'
     ctx.textAlign = 'center'
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)'
+    ctx.shadowBlur = 4
+    ctx.shadowOffsetX = 2
+    ctx.shadowOffsetY = 2
     
     // Split long titles into multiple lines
     const words = face.title.split(' ')
@@ -206,24 +210,50 @@ const createCube = () => {
     }
     lines.push(currentLine)
     
-    // Draw text lines
-    const lineHeight = 40
+    // Enhanced text area with space effects - but keep text white
+    const lineHeight = 44
     const startY = 320 - ((lines.length - 1) * lineHeight) / 2
+    const textHeight = lines.length * lineHeight
+    const padding = 20
+    
+    // Subtle gradient background that blends with space
+    const textBgGradient = ctx.createRadialGradient(256, startY + textHeight/2, 0, 256, startY + textHeight/2, 200)
+    textBgGradient.addColorStop(0, 'rgba(0, 0, 0, 0.6)')
+    textBgGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.3)')
+    textBgGradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
+    ctx.fillStyle = textBgGradient
+    ctx.fillRect(40, startY - padding - 20, 432, textHeight + padding * 2)
+    
+    
+    // ENSURE WHITE TEXT - no lighting interference
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = 'bold 36px Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'alphabetic'
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)'
+    ctx.shadowBlur = 3
+    ctx.shadowOffsetX = 1
+    ctx.shadowOffsetY = 1
+    
+    // Draw each line with white text and shadows
     lines.forEach((line, i) => {
+      ctx.fillStyle = '#FFFFFF'  // Keep text pure white
       ctx.fillText(line, 256, startY + (i * lineHeight))
     })
+    
+    // Clear shadows for next elements
+    ctx.shadowColor = 'transparent'
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
     
     const texture = new THREE.CanvasTexture(canvas)
     texture.minFilter = THREE.LinearFilter
     texture.magFilter = THREE.LinearFilter
     
-    return new THREE.MeshPhongMaterial({ 
+    return new THREE.MeshBasicMaterial({ 
       map: texture,
-      transparent: true,
-      shininess: 100,
-      specular: 0x00ff88,
-      emissive: 0x001122,
-      emissiveIntensity: 0.1
+      transparent: true
     })
   })
   
