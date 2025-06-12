@@ -102,8 +102,13 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import emailjs from '@emailjs/browser'
+
+// Initialize EmailJS
+onMounted(() => {
+  emailjs.init('_AHk61S56x74MUxru')
+})
 
 const form = reactive({
   name: '',
@@ -159,8 +164,7 @@ const handleSubmit = async () => {
         subject: form.subject,
         message: form.message,
         to_email: 'samuellowe90@hotmail.com'
-      },
-      '_AHk61S56x74MUxru'
+      }
     )
     
     showNotification('Thank you! Your message has been sent.', 'success')
