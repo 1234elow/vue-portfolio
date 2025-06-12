@@ -41,8 +41,13 @@ const autoRotationX = ref(0)
 const autoRotationY = ref(0)
 const lastMouseX = ref(0)
 const lastMouseY = ref(0)
+const velocityX = ref(0)
+const velocityY = ref(0)
+const isSpinning = ref(false)
 let animationId = null
 let interactionTimeout = null
+let lastMoveTime = 0
+let dragHistory = []
 
 const faces = ref([
   {
@@ -111,17 +116,54 @@ const handleMouseMove = (event) => {
   // This is for the cube element only - global handler takes care of dragging
 }
 
+const calculateVelocity = () => {
+  const now = Date.now()
+  if (dragHistory.length < 2) return
+  
+  // Use last few positions to calculate velocity
+  const recent = dragHistory.slice(-3)
+  let totalVelX = 0
+  let totalVelY = 0
+  
+  for (let i = 1; i < recent.length; i++) {
+    const dt = recent[i].time - recent[i-1].time
+    if (dt > 0) {
+      totalVelX += (recent[i].deltaX / dt) * 16 // Convert to per-frame
+      totalVelY += (recent[i].deltaY / dt) * 16
+    }
+  }
+  
+  velocityX.value = totalVelX / (recent.length - 1)
+  velocityY.value = totalVelY / (recent.length - 1)
+}
+
 const handleGlobalMouseMove = (event) => {
   if (!isDragging.value) return
   
+  const now = Date.now()
   const deltaX = event.clientX - lastMouseX.value
   const deltaY = event.clientY - lastMouseY.value
   
-  userRotationY.value += deltaX * 0.5
-  userRotationX.value -= deltaY * 0.5
+  // Apply rotation with enhanced sensitivity for ragdoll feel
+  const sensitivity = 1.2
+  userRotationY.value += deltaX * sensitivity
+  userRotationX.value -= deltaY * sensitivity
+  
+  // Track drag history for velocity calculation
+  dragHistory.push({
+    deltaX: deltaX * sensitivity,
+    deltaY: -deltaY * sensitivity,
+    time: now
+  })
+  
+  // Keep only recent history
+  if (dragHistory.length > 10) {
+    dragHistory.shift()
+  }
   
   lastMouseX.value = event.clientX
   lastMouseY.value = event.clientY
+  lastMoveTime = now
 }
 
 const handleMouseUp = () => {
@@ -130,7 +172,34 @@ const handleMouseUp = () => {
 
 const handleGlobalMouseUp = () => {
   isDragging.value = false
-  setInteractionEnd()
+  
+  // Calculate final velocity for momentum
+  calculateVelocity()
+  
+  // Check if user threw the cube fast enough for free spin
+  const speed = Math.sqrt(velocityX.value * velocityX.value + velocityY.value * velocityY.value)
+  const spinThreshold = 15 // Adjust this to change sensitivity
+  
+  if (speed > spinThreshold) {
+    isSpinning.value = true
+    // Don't set interaction end immediately if spinning
+    setTimeout(() => {
+      isSpinning.value = false
+      setInteractionEnd()
+    }, Math.min(speed * 200, 5000)) // Spin duration based on speed, max 5 seconds
+  } else {
+    // Normal release - apply momentum briefly then auto-rotate
+    if (speed > 3) {
+      setTimeout(() => {
+        velocityX.value = 0
+        velocityY.value = 0
+      }, speed * 50) // Brief momentum
+    }
+    setInteractionEnd()
+  }
+  
+  // Clear drag history
+  dragHistory = []
   
   // Remove global listeners
   document.removeEventListener('mousemove', handleGlobalMouseMove)
@@ -153,28 +222,89 @@ const handleTouchStart = (event) => {
 const handleTouchMove = (event) => {
   if (!isDragging.value || event.touches.length !== 1) return
   
+  const now = Date.now()
   const touch = event.touches[0]
   const deltaX = touch.clientX - lastMouseX.value
   const deltaY = touch.clientY - lastMouseY.value
   
-  userRotationY.value += deltaX * 0.5
-  userRotationX.value -= deltaY * 0.5
+  // Apply rotation with enhanced sensitivity for ragdoll feel
+  const sensitivity = 1.2
+  userRotationY.value += deltaX * sensitivity
+  userRotationX.value -= deltaY * sensitivity
+  
+  // Track drag history for velocity calculation
+  dragHistory.push({
+    deltaX: deltaX * sensitivity,
+    deltaY: -deltaY * sensitivity,
+    time: now
+  })
+  
+  // Keep only recent history
+  if (dragHistory.length > 10) {
+    dragHistory.shift()
+  }
   
   lastMouseX.value = touch.clientX
   lastMouseY.value = touch.clientY
+  lastMoveTime = now
   event.preventDefault()
 }
 
 const handleTouchEnd = () => {
   isDragging.value = false
-  setInteractionEnd()
+  
+  // Calculate final velocity for momentum
+  calculateVelocity()
+  
+  // Check if user threw the cube fast enough for free spin
+  const speed = Math.sqrt(velocityX.value * velocityX.value + velocityY.value * velocityY.value)
+  const spinThreshold = 15 // Adjust this to change sensitivity
+  
+  if (speed > spinThreshold) {
+    isSpinning.value = true
+    // Don't set interaction end immediately if spinning
+    setTimeout(() => {
+      isSpinning.value = false
+      setInteractionEnd()
+    }, Math.min(speed * 200, 5000)) // Spin duration based on speed, max 5 seconds
+  } else {
+    // Normal release - apply momentum briefly then auto-rotate
+    if (speed > 3) {
+      setTimeout(() => {
+        velocityX.value = 0
+        velocityY.value = 0
+      }, speed * 50) // Brief momentum
+    }
+    setInteractionEnd()
+  }
+  
+  // Clear drag history
+  dragHistory = []
 }
 
-// Auto rotation animation
+// Auto rotation animation with physics
 const updateAutoRotation = () => {
-  if (!isUserInteracting.value) {
-    autoRotationX.value += 0.03
-    autoRotationY.value += 0.03
+  if (!isUserInteracting.value && !isDragging.value) {
+    // Apply momentum/free spin
+    if (isSpinning.value || Math.abs(velocityX.value) > 0.1 || Math.abs(velocityY.value) > 0.1) {
+      userRotationY.value += velocityY.value
+      userRotationX.value += velocityX.value
+      
+      // Apply friction to slow down momentum
+      const friction = isSpinning.value ? 0.995 : 0.92
+      velocityX.value *= friction
+      velocityY.value *= friction
+      
+      // Stop momentum when it's very small
+      if (Math.abs(velocityX.value) < 0.1 && Math.abs(velocityY.value) < 0.1) {
+        velocityX.value = 0
+        velocityY.value = 0
+      }
+    } else {
+      // Normal auto rotation when no momentum
+      autoRotationX.value += 0.03
+      autoRotationY.value += 0.03
+    }
   }
   animationId = requestAnimationFrame(updateAutoRotation)
 }
@@ -188,6 +318,11 @@ onUnmounted(() => {
     cancelAnimationFrame(animationId)
   }
   clearInteractionTimeout()
+  // Clean up physics state
+  velocityX.value = 0
+  velocityY.value = 0
+  isSpinning.value = false
+  dragHistory = []
   // Clean up global listeners if component is unmounted during drag
   document.removeEventListener('mousemove', handleGlobalMouseMove)
   document.removeEventListener('mouseup', handleGlobalMouseUp)
