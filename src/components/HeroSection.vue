@@ -1,5 +1,5 @@
 <template>
-  <section id="home" class="hero min-h-screen flex items-center bg-black/30 relative overflow-hidden">
+  <section id="home" class="hero min-h-screen flex items-center bg-black/30 relative overflow-hidden pt-20 sm:pt-24">
     <!-- Background Gradient Overlay -->
     <div class="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-primary-green/5"></div>
     

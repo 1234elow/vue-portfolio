@@ -44,6 +44,34 @@ body {
   color: #e0e0e0;
   background-color: #0a0a0a;
   overflow-x: hidden;
+  /* Fix mobile viewport issues */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+/* Mobile viewport fixes */
+@supports (height: 100vh) {
+  .hero {
+    min-height: 100vh;
+  }
+}
+
+@supports (height: 100dvh) {
+  .hero {
+    min-height: 100dvh;
+  }
+}
+
+/* Ensure content doesn't get cut off on mobile */
+@media (max-width: 768px) {
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .hero {
+    min-height: calc(100vh - 80px);
+    padding-top: 100px !important;
+  }
 }
 
 /* Custom animations */
