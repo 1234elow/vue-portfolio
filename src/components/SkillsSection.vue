@@ -7,7 +7,7 @@
       </h2>
       
       <!-- 3D Certification Cube -->
-      <CertificationCube />
+      <ThreeJSCube />
       
       <!-- Skills with Progress Bars -->
       <div class="skills-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-16 justify-items-center">
@@ -24,7 +24,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import CertificationCube from './CertificationCube.vue'
+import ThreeJSCube from './ThreeJSCube.vue'
 import SkillCategory from './SkillCategory.vue'
 
 const skillCategories = ref([
