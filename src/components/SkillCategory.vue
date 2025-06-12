@@ -5,7 +5,17 @@
     <div class="skill-progress-list space-y-6">
       <div v-for="(skill, index) in animatedSkills" :key="skill.name" class="skill-progress-item group">
         <div class="skill-progress-header flex justify-between items-center mb-3">
-          <span class="skill-name text-white font-medium">{{ skill.name }}</span>
+          <div class="skill-name-container flex items-center gap-3">
+            <i 
+              :class="skill.icon" 
+              class="text-2xl transition-colors duration-300"
+              :style="{ color: skill.color }"
+            ></i>
+            <span class="skill-name text-white font-medium">
+              {{ skill.displayedName || '' }}
+              <span v-if="skill.isTyping" class="typing-cursor animate-pulse">|</span>
+            </span>
+          </div>
           <span class="skill-percentage text-primary-green font-semibold">{{ skill.currentLevel }}%</span>
         </div>
         
@@ -36,7 +46,14 @@ const props = defineProps({
 })
 
 const skillCategoryRef = ref(null)
-const animatedSkills = ref(props.skills.map(skill => ({ ...skill, currentLevel: 0, currentWidth: 0, isAnimated: false })))
+const animatedSkills = ref(props.skills.map(skill => ({ 
+  ...skill, 
+  currentLevel: 0, 
+  currentWidth: 0, 
+  isAnimated: false,
+  displayedName: '',
+  isTyping: false
+})))
 
 const animateSkillProgress = (index, target) => {
   let start = 0
@@ -58,16 +75,37 @@ const animateSkillProgress = (index, target) => {
   updateProgress()
 }
 
+const animateTyping = (index, text) => {
+  let currentIndex = 0
+  const typingSpeed = 100 // milliseconds per character
+  
+  animatedSkills.value[index].isTyping = true
+  animatedSkills.value[index].displayedName = ''
+  
+  const typeNextCharacter = () => {
+    if (currentIndex < text.length) {
+      animatedSkills.value[index].displayedName += text.charAt(currentIndex)
+      currentIndex++
+      setTimeout(typeNextCharacter, typingSpeed)
+    } else {
+      animatedSkills.value[index].isTyping = false
+    }
+  }
+  
+  setTimeout(typeNextCharacter, 200) // Start typing after a short delay
+}
+
 onMounted(() => {
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
-        // Animate each progress bar with stagger
+        // Animate each progress bar and typing with stagger
         animatedSkills.value.forEach((skill, index) => {
           setTimeout(() => {
             skill.isAnimated = true
             animateSkillProgress(index, skill.level)
-          }, index * 200) // 200ms stagger between each bar
+            animateTyping(index, skill.name)
+          }, index * 300) // 300ms stagger between each skill
         })
         
         // Only animate once

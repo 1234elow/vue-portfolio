@@ -12,7 +12,8 @@
         </h1>
         
         <h2 class="hero-subtitle text-lg sm:text-xl md:text-2xl text-light-gray mb-6 opacity-0 animate-fade-in-up delay-200">
-          Junior Software Engineer
+          {{ displayedSubtitle }}
+          <span class="subtitle-cursor animate-pulse">|</span>
         </h2>
         
         <p class="hero-description text-base sm:text-lg text-light-gray mb-8 leading-relaxed opacity-0 animate-fade-in-up delay-400">
@@ -62,16 +63,61 @@
 import { ref, onMounted } from 'vue'
 
 const displayedTitle = ref('')
+const displayedSubtitle = ref('')
 const fullTitle = "Hello! I'm Samuel Lowe"
 
+const subtitles = [
+  "Junior Software Engineer",
+  "Full Stack Developer", 
+  "Backend Specialist",
+  "Database Administrator",
+  "Applications Specialist",
+  "Web Developer",
+  "Problem Solver"
+]
+
+let currentSubtitleIndex = 0
+let isTypingSubtitle = false
+let isBackspacing = false
+
+const typeSubtitle = () => {
+  const currentSubtitle = subtitles[currentSubtitleIndex]
+  
+  if (!isBackspacing && displayedSubtitle.value.length < currentSubtitle.length) {
+    // Typing forward
+    displayedSubtitle.value += currentSubtitle.charAt(displayedSubtitle.value.length)
+    setTimeout(typeSubtitle, 100)
+  } else if (!isBackspacing && displayedSubtitle.value.length === currentSubtitle.length) {
+    // Pause at end of word
+    setTimeout(() => {
+      isBackspacing = true
+      typeSubtitle()
+    }, 2000) // Pause for 2 seconds
+  } else if (isBackspacing && displayedSubtitle.value.length > 0) {
+    // Backspacing
+    displayedSubtitle.value = displayedSubtitle.value.slice(0, -1)
+    setTimeout(typeSubtitle, 50) // Faster backspace
+  } else if (isBackspacing && displayedSubtitle.value.length === 0) {
+    // Move to next subtitle
+    isBackspacing = false
+    currentSubtitleIndex = (currentSubtitleIndex + 1) % subtitles.length
+    setTimeout(typeSubtitle, 200) // Short pause before typing next word
+  }
+}
+
 onMounted(() => {
-  // Typing animation
+  // Title typing animation
   let i = 0
   const typeWriter = () => {
     if (i < fullTitle.length) {
       displayedTitle.value += fullTitle.charAt(i)
       i++
       setTimeout(typeWriter, 100)
+    } else {
+      // Start subtitle animation after title is complete
+      setTimeout(() => {
+        typeSubtitle()
+      }, 800)
     }
   }
   
