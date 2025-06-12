@@ -157,13 +157,12 @@ const handleSubmit = async () => {
     // Send email using EmailJS
     await emailjs.send(
       'service_8swiob4',
-      'template_49fbrj2',
+      'template_s84b73x',
       {
         from_name: form.name,
         from_email: form.email,
         subject: form.subject,
-        message: form.message,
-        to_email: 'samuellowe90@hotmail.com'
+        message: form.message
       }
     )
     
@@ -174,8 +173,13 @@ const handleSubmit = async () => {
       form[key] = ''
     })
   } catch (error) {
-    console.error('EmailJS Error:', error)
-    showNotification('Sorry, there was an error sending your message. Please try again.', 'error')
+    console.error('EmailJS Error Details:', {
+      error: error,
+      message: error.message,
+      status: error.status,
+      text: error.text
+    })
+    showNotification(`Error: ${error.text || error.message || 'Unknown error'}. Please try again.`, 'error')
   }
 }
 </script>
