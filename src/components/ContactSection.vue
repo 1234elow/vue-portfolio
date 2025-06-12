@@ -103,6 +103,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
+import emailjs from '@emailjs/browser'
 
 const form = reactive({
   name: '',
@@ -135,7 +136,7 @@ const showNotification = (message, type = 'success') => {
   }, 5000)
 }
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   // Validate form
   if (!form.name || !form.email || !form.subject || !form.message) {
     showNotification('Please fill in all required fields.', 'error')
@@ -147,12 +148,30 @@ const handleSubmit = () => {
     return
   }
   
-  // Simulate form submission
-  showNotification('Thank you! Your message has been sent.', 'success')
-  
-  // Reset form
-  Object.keys(form).forEach(key => {
-    form[key] = ''
-  })
+  try {
+    // Send email using EmailJS
+    await emailjs.send(
+      'service_8swiob4',
+      'template_49fbrj2',
+      {
+        from_name: form.name,
+        from_email: form.email,
+        subject: form.subject,
+        message: form.message,
+        to_email: 'samuellowe90@hotmail.com'
+      },
+      '_AHk61S56x74MUxru'
+    )
+    
+    showNotification('Thank you! Your message has been sent.', 'success')
+    
+    // Reset form
+    Object.keys(form).forEach(key => {
+      form[key] = ''
+    })
+  } catch (error) {
+    console.error('EmailJS Error:', error)
+    showNotification('Sorry, there was an error sending your message. Please try again.', 'error')
+  }
 }
 </script>
