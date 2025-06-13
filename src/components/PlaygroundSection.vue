@@ -84,9 +84,27 @@ let frameCount = 0
 let lastTime = performance.now()
 let lastFrameTime = 0
 
-// Particle system
+// Particle system with optimizations
 let particleGeometry, particleMaterial, particleSystem
-const MAX_PARTICLES = 150 // Even fewer particles for cleaner letters
+let MAX_PARTICLES = 150 // Will be set based on device detection
+
+// Object pools for performance
+const vector3Pool = []
+const tempVector = new THREE.Vector3()
+const tempVector2 = new THREE.Vector3()
+
+// Color cache for performance
+const colorCache = new Map()
+let lastColorTime = 0
+const COLOR_CACHE_DURATION = 100 // Cache colors for 100ms
+
+// Performance tracking
+let needsPositionUpdate = false
+let needsColorUpdate = false
+let needsSizeUpdate = false
+
+const getPooledVector3 = () => vector3Pool.length > 0 ? vector3Pool.pop() : new THREE.Vector3()
+const releaseVector3 = (v) => { v.set(0, 0, 0); vector3Pool.push(v) }
 
 class GravitationalParticle {
   constructor(x, y, z) {
@@ -98,120 +116,151 @@ class GravitationalParticle {
     )
     this.targetPosition = new THREE.Vector3(0, 0, 0)
     this.life = 1.0
-    this.size = 0.001 + Math.random() * 0.001 // Even tinier particles for precise letters
+    this.size = 0.001 + Math.random() * 0.001
     this.originalPosition = this.position.clone()
     this.hasTarget = false
-    this.isNameParticle = false // Track if this particle forms the name
+    this.isNameParticle = false
+    this.lastUpdate = 0
+    this.colorCacheKey = ''
+    this.cachedColor = { r: 1, g: 1, b: 1 }
   }
   
-  update(deltaTime, isForming) {
+  update(deltaTime, isForming, currentTime) {
+    // Remove the throttling that was preventing updates
+    this.lastUpdate = currentTime
+    
+    // Use temp vectors to avoid allocations
+    let positionChanged = false
+    
     if (isForming && this.hasTarget) {
-      // Gravitational attraction to target
-      const direction = this.targetPosition.clone().sub(this.position)
-      const distance = direction.length()
+      // Gravitational attraction using temp vector
+      tempVector.copy(this.targetPosition).sub(this.position)
+      const distance = tempVector.length()
       
       if (distance > 0.05) {
-        direction.normalize()
-        const force = Math.min(distance * 3.0, 8.0) // Much stronger attraction
-        this.velocity.add(direction.multiplyScalar(force * deltaTime))
+        tempVector.normalize()
+        const force = Math.min(distance * 3.0, 8.0)
+        tempVector2.copy(tempVector).multiplyScalar(force * deltaTime)
+        this.velocity.add(tempVector2)
+        positionChanged = true
       }
       
-      // Strong damping when close to target for precise positioning
       if (distance < 0.2) {
         this.velocity.multiplyScalar(0.7)
       }
     } else {
       if (this.isNameParticle) {
-        // Name particles float gently when not forming
-        this.velocity.add(new THREE.Vector3(
-          (Math.random() - 0.5) * 0.01,
-          (Math.random() - 0.5) * 0.01,
-          (Math.random() - 0.5) * 0.01
-        ))
-        this.velocity.y -= 0.01 * deltaTime
+        // Optimized gentle floating
+        const drift = 0.01 * deltaTime
+        this.velocity.x += (Math.random() - 0.5) * drift
+        this.velocity.y += (Math.random() - 0.5) * drift - drift
+        this.velocity.z += (Math.random() - 0.5) * drift
+        positionChanged = true
       } else {
-        // Non-name particles orbit around the center
-        const centerX = 0
-        const centerY = 0
-        const dx = this.position.x - centerX
-        const dy = this.position.y - centerY
-        const distance = Math.sqrt(dx * dx + dy * dy)
+        // Optimized orbital motion
+        const dx = this.position.x
+        const dy = this.position.y
+        const distanceSq = dx * dx + dy * dy // Avoid sqrt when possible
         
-        if (distance > 0.1) {
-          // Orbital motion
-          const orbitSpeed = 0.3
-          this.velocity.x += -dy / distance * orbitSpeed * deltaTime
-          this.velocity.y += dx / distance * orbitSpeed * deltaTime
+        if (distanceSq > 0.01) {
+          const distance = Math.sqrt(distanceSq)
+          const invDistance = 1 / distance
+          const orbitSpeed = 0.3 * deltaTime
           
-          // Keep them at a reasonable distance
+          this.velocity.x += -dy * invDistance * orbitSpeed
+          this.velocity.y += dx * invDistance * orbitSpeed
+          
           if (distance > 8) {
-            this.velocity.x += -dx / distance * 0.5 * deltaTime
-            this.velocity.y += -dy / distance * 0.5 * deltaTime
+            const pullSpeed = 0.5 * deltaTime * invDistance
+            this.velocity.x -= dx * pullSpeed
+            this.velocity.y -= dy * pullSpeed
           }
         }
         
         this.velocity.y -= 0.02 * deltaTime
+        positionChanged = true
       }
     }
     
-    // Apply velocity
-    this.position.add(this.velocity.clone().multiplyScalar(deltaTime))
-    
-    // Boundary constraints - sized for "SAMUEL"
-    const bounds = { x: 12, y: 6, z: 3 }
-    
-    if (this.position.x > bounds.x || this.position.x < -bounds.x) {
-      this.velocity.x *= -0.8
-      this.position.x = Math.max(-bounds.x, Math.min(bounds.x, this.position.x))
+    if (positionChanged) {
+      // Apply velocity using temp vector
+      tempVector.copy(this.velocity).multiplyScalar(deltaTime)
+      this.position.add(tempVector)
+      
+      // Optimized boundary constraints
+      const bounds = { x: 12, y: 6, z: 3 }
+      let bounced = false
+      
+      if (this.position.x > bounds.x || this.position.x < -bounds.x) {
+        this.velocity.x *= -0.8
+        this.position.x = this.position.x > 0 ? bounds.x : -bounds.x
+        bounced = true
+      }
+      
+      if (this.position.y > bounds.y || this.position.y < -bounds.y) {
+        this.velocity.y *= -0.8
+        this.position.y = this.position.y > 0 ? bounds.y : -bounds.y
+        bounced = true
+      }
+      
+      if (this.position.z > bounds.z || this.position.z < -bounds.z) {
+        this.velocity.z *= -0.8
+        this.position.z = this.position.z > 0 ? bounds.z : -bounds.z
+        bounced = true
+      }
+      
+      // Velocity damping and limits
+      this.velocity.multiplyScalar(0.998)
+      
+      const velLengthSq = this.velocity.lengthSq()
+      if (velLengthSq > 9.0) { // maxVel^2 = 3.0^2
+        this.velocity.multiplyScalar(3.0 / Math.sqrt(velLengthSq))
+      }
     }
     
-    if (this.position.y > bounds.y || this.position.y < -bounds.y) {
-      this.velocity.y *= -0.8
-      this.position.y = Math.max(-bounds.y, Math.min(bounds.y, this.position.y))
-    }
-    
-    if (this.position.z > bounds.z || this.position.z < -bounds.z) {
-      this.velocity.z *= -0.8
-      this.position.z = Math.max(-bounds.z, Math.min(bounds.z, this.position.z))
-    }
-    
-    // Velocity damping
-    this.velocity.multiplyScalar(0.998)
-    
-    // Velocity limits
-    const maxVel = 3.0
-    if (this.velocity.length() > maxVel) {
-      this.velocity.normalize().multiplyScalar(maxVel)
-    }
+    return positionChanged
   }
   
   getColor(time) {
     if (this.isNameParticle && isForming.value) {
-      // Bright, prominent colors for name particles
-      return { r: 0.2, g: 1.0, b: 0.4 } // Bright green
+      // Cache static color for name particles
+      if (this.colorCacheKey !== 'name') {
+        this.cachedColor = { r: 0.2, g: 1.0, b: 0.4 }
+        this.colorCacheKey = 'name'
+      }
+      return this.cachedColor
     }
     
-    // Color cycling for orbiting particles
-    const hue = (time * 0.15) % 1
-    const sat = isForming.value ? 0.6 : 0.8
-    const val = isForming.value ? 0.4 : 0.7 // Dimmer when forming
+    // Use cached color calculation for orbiting particles
+    const timeKey = Math.floor(time * 5) // Cache for 200ms intervals
+    const formingKey = isForming.value ? '1' : '0'
+    const cacheKey = `${timeKey}_${formingKey}`
     
-    // HSB to RGB conversion
-    const c = val * sat
-    const x = c * (1 - Math.abs(((hue * 6) % 2) - 1))
-    const m = val - c
+    if (this.colorCacheKey !== cacheKey) {
+      // Recalculate color
+      const hue = (time * 0.15) % 1
+      const sat = isForming.value ? 0.6 : 0.8
+      const val = isForming.value ? 0.4 : 0.7
+      
+      // Optimized HSB to RGB
+      const c = val * sat
+      const h = hue * 6
+      const x = c * (1 - Math.abs((h % 2) - 1))
+      const m = val - c
+      
+      let r, g, b
+      if (h < 1) { r = c; g = x; b = 0 }
+      else if (h < 2) { r = x; g = c; b = 0 }
+      else if (h < 3) { r = 0; g = c; b = x }
+      else if (h < 4) { r = 0; g = x; b = c }
+      else if (h < 5) { r = x; g = 0; b = c }
+      else { r = c; g = 0; b = x }
+      
+      this.cachedColor = { r: r + m, g: g + m, b: b + m }
+      this.colorCacheKey = cacheKey
+    }
     
-    let r, g, b
-    const h = hue * 6
-    
-    if (h < 1) { r = c; g = x; b = 0 }
-    else if (h < 2) { r = x; g = c; b = 0 }
-    else if (h < 3) { r = 0; g = c; b = x }
-    else if (h < 4) { r = 0; g = x; b = c }
-    else if (h < 5) { r = x; g = 0; b = c }
-    else { r = c; g = 0; b = x }
-    
-    return { r: r + m, g: g + m, b: b + m }
+    return this.cachedColor
   }
 }
 
@@ -236,6 +285,9 @@ const deactivateFormation = () => {
 const initGravitationalPlayground = () => {
   // Detect mobile
   isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
+  
+  // Set adaptive particle count
+  MAX_PARTICLES = isMobile ? 100 : 150
   
   // Scene setup
   scene = new THREE.Scene()
@@ -421,42 +473,70 @@ const assignTargetsToParticles = () => {
 }
 
 const updateParticleSystem = (deltaTime, currentTime) => {
-  // Update all particles
-  particles.forEach(particle => {
-    particle.update(deltaTime, isForming.value)
-  })
+  // Reset update flags
+  needsPositionUpdate = false
+  needsColorUpdate = false
+  needsSizeUpdate = false
   
-  // Update geometry buffers
+  // Get array references once
   const positions = particleGeometry.attributes.position.array
   const colors = particleGeometry.attributes.color.array
   const sizes = particleGeometry.attributes.size.array
   
+  // Batch update particles
   for (let i = 0; i < MAX_PARTICLES; i++) {
     const particle = particles[i]
+    const positionChanged = particle.update(deltaTime, isForming.value, currentTime)
+    
+    if (positionChanged) {
+      const i3 = i * 3
+      positions[i3] = particle.position.x
+      positions[i3 + 1] = particle.position.y
+      positions[i3 + 2] = particle.position.z
+      needsPositionUpdate = true
+    }
+    
+    // Update colors every frame for responsiveness
     const color = particle.getColor(currentTime)
+    const i3 = i * 3
     
-    positions[i * 3] = particle.position.x
-    positions[i * 3 + 1] = particle.position.y
-    positions[i * 3 + 2] = particle.position.z
+    if (colors[i3] !== color.r || colors[i3 + 1] !== color.g || colors[i3 + 2] !== color.b) {
+      colors[i3] = color.r
+      colors[i3 + 1] = color.g
+      colors[i3 + 2] = color.b
+      needsColorUpdate = true
+    }
     
-    colors[i * 3] = color.r
-    colors[i * 3 + 1] = color.g
-    colors[i * 3 + 2] = color.b
-    
-    sizes[i] = particle.size
+    // Size rarely changes, update only if needed
+    if (sizes[i] !== particle.size) {
+      sizes[i] = particle.size
+      needsSizeUpdate = true
+    }
   }
   
-  particleGeometry.attributes.position.needsUpdate = true
-  particleGeometry.attributes.color.needsUpdate = true
-  particleGeometry.attributes.size.needsUpdate = true
+  // Update color cache timestamp
+  if (currentTime - lastColorTime > COLOR_CACHE_DURATION) {
+    lastColorTime = currentTime
+  }
+  
+  // Only update buffers that actually changed
+  if (needsPositionUpdate) {
+    particleGeometry.attributes.position.needsUpdate = true
+  }
+  if (needsColorUpdate) {
+    particleGeometry.attributes.color.needsUpdate = true
+  }
+  if (needsSizeUpdate) {
+    particleGeometry.attributes.size.needsUpdate = true
+  }
 }
 
 const animate = (currentTime = 0) => {
   animationId = requestAnimationFrame(animate)
   
-  // FPS limiting for mobile
+  // Reduce FPS limiting to allow smoother animation
   if (isMobile) {
-    const frameInterval = 1000 / 30 // 30 FPS for mobile
+    const frameInterval = 1000 / 45 // Increase to 45 FPS for mobile
     if (currentTime - lastFrameTime < frameInterval) {
       return
     }

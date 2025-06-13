@@ -18,7 +18,17 @@ let lightTime = 0
 let isVisible = false
 let isMobile = false
 let lastFrameTime = 0
-const targetFPS = 30 // Limit FPS on mobile
+const targetFPS = 30
+
+// Performance optimizations
+let isLowEnd = false
+let textureCache = new Map()
+let resizeObserver = null
+let performanceMonitor = {
+  frameCount: 0,
+  lastCheck: 0,
+  avgFPS: 60
+}
 
 const faces = [
   { icon: 'fas fa-robot', title: 'Machine Learning', color: 0x00ff88 },
@@ -30,13 +40,15 @@ const faces = [
 ]
 
 onMounted(() => {
-  // Detect mobile devices
+  // Enhanced device detection
   isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
+  isLowEnd = navigator.hardwareConcurrency <= 4 || (navigator.deviceMemory && navigator.deviceMemory <= 4)
   
   initThreeJS()
   createCube()
   addEventListeners()
   setupIntersectionObserver()
+  setupResizeObserver()
   animate()
 })
 
@@ -95,39 +107,55 @@ const initThreeJS = () => {
 const createCube = () => {
   const geometry = new THREE.BoxGeometry(2, 2, 2)
   
-  // Create materials for each face with text
+  // Create materials for each face with cached textures
   const materials = faces.map((face, index) => {
+    // Check cache first
+    const cacheKey = `${face.title}_${isMobile}_${isLowEnd}`
+    if (textureCache.has(cacheKey)) {
+      return new THREE.MeshBasicMaterial({ 
+        map: textureCache.get(cacheKey),
+        transparent: true
+      })
+    }
+    
     const canvas = document.createElement('canvas')
-    // Reduce texture resolution on mobile
-    const texSize = isMobile ? 256 : 512
+    // Adaptive texture resolution
+    const texSize = isLowEnd ? 128 : (isMobile ? 256 : 512)
     canvas.width = texSize
     canvas.height = texSize
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: false })
     
-    // Space-like starfield background
+    // Optimized starfield background
     ctx.fillStyle = '#000000'
     ctx.fillRect(0, 0, texSize, texSize)
     
-    // Reduce star count on mobile
-    const starCount = isMobile ? 15 : 30
+    // Adaptive star count based on performance
+    const starCount = isLowEnd ? 8 : (isMobile ? 15 : 30)
+    
+    // Batch star rendering for better performance
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
+    ctx.beginPath()
     for (let i = 0; i < starCount; i++) {
       const x = Math.random() * texSize
       const y = Math.random() * texSize
-      const size = Math.random() * 2 + 0.5
-      const opacity = Math.random() * 0.8 + 0.2
-      
-      ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`
-      ctx.beginPath()
+      const size = Math.random() * 1.5 + 0.5
+      ctx.moveTo(x + size, y)
       ctx.arc(x, y, size, 0, Math.PI * 2)
-      ctx.fill()
-      
-      // Add twinkling effect to some stars
-      if (Math.random() > 0.7) {
-        ctx.fillStyle = `rgba(0, 255, 136, ${opacity * 0.5})`
-        ctx.beginPath()
-        ctx.arc(x, y, size * 0.5, 0, Math.PI * 2)
-        ctx.fill()
+    }
+    ctx.fill()
+    
+    // Add fewer twinkling stars for low-end devices
+    if (!isLowEnd) {
+      ctx.fillStyle = 'rgba(0, 255, 136, 0.4)'
+      ctx.beginPath()
+      for (let i = 0; i < starCount * 0.3; i++) {
+        const x = Math.random() * texSize
+        const y = Math.random() * texSize
+        const size = Math.random() * 1 + 0.3
+        ctx.moveTo(x + size, y)
+        ctx.arc(x, y, size, 0, Math.PI * 2)
       }
+      ctx.fill()
     }
     
     // Add nebula-like glow in corners
@@ -271,6 +299,11 @@ const createCube = () => {
     const texture = new THREE.CanvasTexture(canvas)
     texture.minFilter = THREE.LinearFilter
     texture.magFilter = THREE.LinearFilter
+    texture.generateMipmaps = false // Disable mipmaps for better performance
+    // Remove flipY = false to fix text orientation
+    
+    // Cache the texture
+    textureCache.set(cacheKey, texture)
     
     return new THREE.MeshBasicMaterial({ 
       map: texture,
@@ -283,9 +316,13 @@ const createCube = () => {
   cube.receiveShadow = true
   scene.add(cube)
   
-  // Initial rotation to show 3D
-  cube.rotation.x = -0.2
+  // Fix initial rotation - proper orientation
+  cube.rotation.x = 0.2
   cube.rotation.y = 0.4
+  currentRotationX = 0.2
+  currentRotationY = 0.4
+  targetRotationX = 0.2
+  targetRotationY = 0.4
 }
 
 const addEventListeners = () => {
@@ -376,53 +413,91 @@ const setupIntersectionObserver = () => {
 const animate = (currentTime = 0) => {
   animationId = requestAnimationFrame(animate)
   
-  // FPS limiting for mobile
-  if (isMobile) {
-    const frameInterval = 1000 / targetFPS
-    if (currentTime - lastFrameTime < frameInterval) {
-      return
+  // Enhanced performance monitoring
+  performanceMonitor.frameCount++
+  if (currentTime - performanceMonitor.lastCheck > 1000) {
+    performanceMonitor.avgFPS = performanceMonitor.frameCount
+    performanceMonitor.frameCount = 0
+    performanceMonitor.lastCheck = currentTime
+    
+    // Adaptive quality based on performance
+    if (performanceMonitor.avgFPS < 20 && !isLowEnd) {
+      isLowEnd = true // Temporarily reduce quality
     }
-    lastFrameTime = currentTime
   }
   
-  // Only animate if visible to save battery
-  if (!isVisible) {
+  // Reduce FPS limiting for smoother animation
+  const frameInterval = isLowEnd ? 1000 / 30 : (isMobile ? 1000 / 45 : 0) // Increased FPS
+  if (frameInterval > 0 && currentTime - lastFrameTime < frameInterval) {
+    return
+  }
+  lastFrameTime = currentTime
+  
+  // Only animate if visible and page is active
+  if (!isVisible || document.hidden) {
     return
   }
   
-  lightTime += isMobile ? 0.01 : 0.02 // Slower animation on mobile
+  // Reduce update frequency on low-end devices
+  const timeMultiplier = isLowEnd ? 0.5 : 1
+  lightTime += (isMobile ? 0.01 : 0.02) * timeMultiplier
   
-  // Smooth rotation interpolation
-  const lerpFactor = isMobile ? 0.08 : 0.1 // Slightly slower on mobile for smoother animation
+  // Optimized rotation interpolation
+  const lerpFactor = isLowEnd ? 0.06 : (isMobile ? 0.08 : 0.1)
   currentRotationX += (targetRotationX - currentRotationX) * lerpFactor
   currentRotationY += (targetRotationY - currentRotationY) * lerpFactor
   
   cube.rotation.x = currentRotationX
   cube.rotation.y = currentRotationY
   
-  // Auto rotation when not dragging
+  // Auto rotation when not dragging - normal speed
   if (!isDragging) {
-    const rotationSpeed = isMobile ? 0.003 : 0.005 // Slower on mobile
+    const rotationSpeed = isMobile ? 0.008 : 0.01 // Restore normal rotation speed
     targetRotationY += rotationSpeed
   }
   
-  // Reduced lighting animation on mobile
-  if (!isMobile) {
+  // Conditional lighting animation
+  if (!isMobile && !isLowEnd) {
     pointLight.position.x = Math.sin(lightTime) * 3
     pointLight.position.z = Math.cos(lightTime) * 3 + 3
     pointLight.intensity = 0.8 + Math.sin(lightTime * 2) * 0.3
   } else {
-    // Static lighting on mobile to reduce GPU load
     pointLight.intensity = 0.8
   }
   
   renderer.render(scene, camera)
 }
 
+const setupResizeObserver = () => {
+  if (typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => {
+      if (containerRef.value && renderer && camera) {
+        const width = containerRef.value.clientWidth
+        const height = containerRef.value.clientHeight
+        camera.aspect = width / height
+        camera.updateProjectionMatrix()
+        renderer.setSize(width, height)
+      }
+    })
+    
+    if (containerRef.value) {
+      resizeObserver.observe(containerRef.value)
+    }
+  }
+}
+
 onUnmounted(() => {
   if (animationId) {
     cancelAnimationFrame(animationId)
   }
+  
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+  }
+  
+  // Clean up cached textures
+  textureCache.forEach(texture => texture.dispose())
+  textureCache.clear()
   
   // Clean up Three.js resources
   if (renderer) {
@@ -438,8 +513,12 @@ onUnmounted(() => {
       if (object.geometry) object.geometry.dispose()
       if (object.material) {
         if (Array.isArray(object.material)) {
-          object.material.forEach(material => material.dispose())
+          object.material.forEach(material => {
+            if (material.map) material.map.dispose()
+            material.dispose()
+          })
         } else {
+          if (object.material.map) object.material.map.dispose()
           object.material.dispose()
         }
       }
