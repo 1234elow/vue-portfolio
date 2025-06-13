@@ -15,6 +15,10 @@ let mouseX = 0, mouseY = 0
 let targetRotationX = 0, targetRotationY = 0
 let currentRotationX = 0, currentRotationY = 0
 let lightTime = 0
+let isVisible = false
+let isMobile = false
+let lastFrameTime = 0
+const targetFPS = 30 // Limit FPS on mobile
 
 const faces = [
   { icon: 'fas fa-robot', title: 'Machine Learning', color: 0x00ff88 },
@@ -26,9 +30,13 @@ const faces = [
 ]
 
 onMounted(() => {
+  // Detect mobile devices
+  isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
+  
   initThreeJS()
   createCube()
   addEventListeners()
+  setupIntersectionObserver()
   animate()
 })
 
@@ -41,16 +49,25 @@ const initThreeJS = () => {
   camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000)
   camera.position.set(0, 0, 4)
   
-  // Renderer
+  // Renderer with mobile optimizations
   renderer = new THREE.WebGLRenderer({ 
-    antialias: true, 
+    antialias: !isMobile, // Disable antialiasing on mobile
     alpha: true,
-    premultipliedAlpha: false
+    premultipliedAlpha: false,
+    powerPreference: isMobile ? 'low-power' : 'high-performance'
   })
-  renderer.setSize(400, 400)
+  
+  // Responsive size based on device
+  const size = isMobile ? 300 : 400
+  renderer.setSize(size, size)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2))
   renderer.setClearColor(0x000000, 0) // Transparent background
-  renderer.shadowMap.enabled = true
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  
+  // Disable shadows on mobile for better performance
+  if (!isMobile) {
+    renderer.shadowMap.enabled = true
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  }
   
   containerRef.value.appendChild(renderer.domElement)
   
@@ -81,18 +98,21 @@ const createCube = () => {
   // Create materials for each face with text
   const materials = faces.map((face, index) => {
     const canvas = document.createElement('canvas')
-    canvas.width = 512
-    canvas.height = 512
+    // Reduce texture resolution on mobile
+    const texSize = isMobile ? 256 : 512
+    canvas.width = texSize
+    canvas.height = texSize
     const ctx = canvas.getContext('2d')
     
     // Space-like starfield background
     ctx.fillStyle = '#000000'
-    ctx.fillRect(0, 0, 512, 512)
+    ctx.fillRect(0, 0, texSize, texSize)
     
-    // Add random stars
-    for (let i = 0; i < 30; i++) {
-      const x = Math.random() * 512
-      const y = Math.random() * 512
+    // Reduce star count on mobile
+    const starCount = isMobile ? 15 : 30
+    for (let i = 0; i < starCount; i++) {
+      const x = Math.random() * texSize
+      const y = Math.random() * texSize
       const size = Math.random() * 2 + 0.5
       const opacity = Math.random() * 0.8 + 0.2
       
@@ -201,7 +221,7 @@ const createCube = () => {
     for (let i = 1; i < words.length; i++) {
       const testLine = currentLine + ' ' + words[i]
       const metrics = ctx.measureText(testLine)
-      if (metrics.width > 400) {
+      if (metrics.width > texSize * 0.78) { // Scale with texture size
         lines.push(currentLine)
         currentLine = words[i]
       } else {
@@ -211,23 +231,24 @@ const createCube = () => {
     lines.push(currentLine)
     
     // Enhanced text area with space effects - but keep text white
-    const lineHeight = 44
-    const startY = 320 - ((lines.length - 1) * lineHeight) / 2
+    const lineHeight = texSize * 0.086 // Scale with texture size (44/512)
+    const startY = texSize * 0.625 - ((lines.length - 1) * lineHeight) / 2 // Scale center Y
     const textHeight = lines.length * lineHeight
     const padding = 20
     
     // Subtle gradient background that blends with space
-    const textBgGradient = ctx.createRadialGradient(256, startY + textHeight/2, 0, 256, startY + textHeight/2, 200)
+    const textBgGradient = ctx.createRadialGradient(texSize/2, startY + textHeight/2, 0, texSize/2, startY + textHeight/2, texSize * 0.39)
     textBgGradient.addColorStop(0, 'rgba(0, 0, 0, 0.6)')
     textBgGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.3)')
     textBgGradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
     ctx.fillStyle = textBgGradient
-    ctx.fillRect(40, startY - padding - 20, 432, textHeight + padding * 2)
+    ctx.fillRect(texSize * 0.078, startY - padding - 20, texSize * 0.844, textHeight + padding * 2)
     
     
     // ENSURE WHITE TEXT - no lighting interference
     ctx.fillStyle = '#FFFFFF'
-    ctx.font = 'bold 36px Arial'
+    const fontSize = Math.round(texSize * 0.07) // Scale font size (36/512)
+    ctx.font = `bold ${fontSize}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
     ctx.shadowColor = 'rgba(0, 0, 0, 0.8)'
@@ -238,7 +259,7 @@ const createCube = () => {
     // Draw each line with white text and shadows
     lines.forEach((line, i) => {
       ctx.fillStyle = '#FFFFFF'  // Keep text pure white
-      ctx.fillText(line, 256, startY + (i * lineHeight))
+      ctx.fillText(line, texSize/2, startY + (i * lineHeight))
     })
     
     // Clear shadows for next elements
@@ -324,8 +345,10 @@ const onTouchMove = (event) => {
   const deltaX = event.touches[0].clientX - mouseX
   const deltaY = event.touches[0].clientY - mouseY
   
-  targetRotationY += deltaX * 0.01
-  targetRotationX += deltaY * 0.01
+  // Reduce sensitivity on mobile for smoother control
+  const sensitivity = isMobile ? 0.008 : 0.01
+  targetRotationY += deltaX * sensitivity
+  targetRotationX += deltaY * sensitivity
   
   mouseX = event.touches[0].clientX
   mouseY = event.touches[0].clientY
@@ -336,26 +359,62 @@ const onTouchEnd = (event) => {
   isDragging = false
 }
 
-const animate = () => {
+const setupIntersectionObserver = () => {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      isVisible = entry.isIntersecting
+    })
+  }, {
+    threshold: 0.1 // Start animating when 10% visible
+  })
+  
+  if (containerRef.value) {
+    observer.observe(containerRef.value)
+  }
+}
+
+const animate = (currentTime = 0) => {
   animationId = requestAnimationFrame(animate)
-  lightTime += 0.02
+  
+  // FPS limiting for mobile
+  if (isMobile) {
+    const frameInterval = 1000 / targetFPS
+    if (currentTime - lastFrameTime < frameInterval) {
+      return
+    }
+    lastFrameTime = currentTime
+  }
+  
+  // Only animate if visible to save battery
+  if (!isVisible) {
+    return
+  }
+  
+  lightTime += isMobile ? 0.01 : 0.02 // Slower animation on mobile
   
   // Smooth rotation interpolation
-  currentRotationX += (targetRotationX - currentRotationX) * 0.1
-  currentRotationY += (targetRotationY - currentRotationY) * 0.1
+  const lerpFactor = isMobile ? 0.08 : 0.1 // Slightly slower on mobile for smoother animation
+  currentRotationX += (targetRotationX - currentRotationX) * lerpFactor
+  currentRotationY += (targetRotationY - currentRotationY) * lerpFactor
   
   cube.rotation.x = currentRotationX
   cube.rotation.y = currentRotationY
   
   // Auto rotation when not dragging
   if (!isDragging) {
-    targetRotationY += 0.005
+    const rotationSpeed = isMobile ? 0.003 : 0.005 // Slower on mobile
+    targetRotationY += rotationSpeed
   }
   
-  // Animate the point light for dynamic space-like effects
-  pointLight.position.x = Math.sin(lightTime) * 3
-  pointLight.position.z = Math.cos(lightTime) * 3 + 3
-  pointLight.intensity = 0.8 + Math.sin(lightTime * 2) * 0.3
+  // Reduced lighting animation on mobile
+  if (!isMobile) {
+    pointLight.position.x = Math.sin(lightTime) * 3
+    pointLight.position.z = Math.cos(lightTime) * 3 + 3
+    pointLight.intensity = 0.8 + Math.sin(lightTime * 2) * 0.3
+  } else {
+    // Static lighting on mobile to reduce GPU load
+    pointLight.intensity = 0.8
+  }
   
   renderer.render(scene, camera)
 }
