@@ -105,10 +105,11 @@ body {
   animation-play-state: paused !important;
 }
 
-/* Exception: Keep profile ring animations running even when tab is hidden */
+/* Exception: Keep profile ring animations and shimmer running even when tab is hidden */
 .tab-hidden .animate-spin-slow,
 .tab-hidden .animate-pulse-ring,
-.tab-hidden .animate-ping-slow {
+.tab-hidden .animate-ping-slow,
+.tab-hidden .animate-shimmer {
   animation-play-state: running !important;
 }
 
@@ -169,6 +170,14 @@ body {
   .animate-ping-slow {
     animation-duration: 6s;
   }
+  
+  /* Ensure shimmer works on mobile */
+  .animate-shimmer {
+    animation: shimmer 2.5s infinite;
+    animation-duration: 2.5s;
+    -webkit-animation: shimmer 2.5s infinite;
+    -webkit-animation-duration: 2.5s;
+  }
 }
 
 /* Low memory device optimizations */
@@ -190,10 +199,11 @@ body {
     scroll-behavior: auto !important;
   }
   
-  /* Exception: Keep profile ring animations running even with reduced motion preference */
+  /* Exception: Keep profile ring animations and shimmer running even with reduced motion preference */
   .animate-spin-slow,
   .animate-pulse-ring,
-  .animate-ping-slow {
+  .animate-ping-slow,
+  .animate-shimmer {
     animation-duration: revert !important;
     animation-iteration-count: infinite !important;
     animation-play-state: running !important;
