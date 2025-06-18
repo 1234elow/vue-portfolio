@@ -154,6 +154,21 @@ onMounted(() => {
   animation: spin-slow 20s linear infinite;
 }
 
+/* Force animations on mobile - override reduced motion */
+@media (max-width: 768px) {
+  .animate-spin-slow {
+    animation: spin-slow 20s linear infinite !important;
+  }
+  
+  .animate-pulse-ring {
+    animation: pulse-ring 2s ease-in-out infinite !important;
+  }
+  
+  .animate-ping-slow {
+    animation: ping-slow 3s cubic-bezier(0, 0, 0.2, 1) infinite !important;
+  }
+}
+
 .delay-200 {
   animation-delay: 0.2s;
 }
@@ -201,9 +216,13 @@ onMounted(() => {
 
 .animate-pulse-ring {
   animation: pulse-ring 2s ease-in-out infinite;
+  /* Ensure animation plays on mobile */
+  animation-play-state: running !important;
 }
 
 .animate-ping-slow {
   animation: ping-slow 3s cubic-bezier(0, 0, 0.2, 1) infinite;
+  /* Ensure animation plays on mobile */
+  animation-play-state: running !important;
 }
 </style>

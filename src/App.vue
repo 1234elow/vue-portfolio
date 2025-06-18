@@ -37,6 +37,9 @@
       
       <!-- Footer -->
       <FooterSection />
+      
+      <!-- ChatBot -->
+      <ChatBot />
     </div>
   </div>
 </template>
@@ -55,6 +58,7 @@ import ProjectsSection from './components/ProjectsSection.vue'
 import ContactSection from './components/ContactSection.vue'
 import PlaygroundSection from './components/PlaygroundSection.vue'
 import FooterSection from './components/FooterSection.vue'
+import ChatBot from './components/ChatBot.vue'
 
 const showMainContent = ref(false)
 
