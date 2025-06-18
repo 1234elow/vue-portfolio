@@ -1,13 +1,13 @@
 <template>
   <!-- Top Progress Bar -->
   <div 
-    class="fixed top-0 left-0 h-1 bg-gradient-to-r from-primary-green to-light-green shadow-lg shadow-primary-green/50 z-[1001] transition-all duration-100"
+    class="fixed top-0 left-0 h-1 bg-gradient-to-r from-green-400 to-green-300 shadow-lg shadow-green-400/50 z-[1001] transition-all duration-100"
     :style="{ width: `${scrollPercent}%` }"
   ></div>
 
   <!-- Circular Progress Indicator -->
   <div 
-    class="fixed bottom-8 right-8 w-15 h-15 bg-dark-gray/90 rounded-full flex items-center justify-center border-2 border-primary-green/30 backdrop-blur-lg cursor-pointer z-[999] transition-all duration-300 hover:scale-110 hover:border-primary-green hover:shadow-lg hover:shadow-primary-green/40"
+    class="fixed bottom-8 right-8 w-16 h-16 bg-gray-800/90 rounded-full flex items-center justify-center border-2 border-green-400/30 backdrop-blur-lg cursor-pointer z-[999] transition-all duration-300 hover:scale-110 hover:border-green-400 hover:shadow-lg hover:shadow-green-400/40"
     :class="{ 'opacity-0 translate-y-5': scrollPercent < 5, 'opacity-100 translate-y-0': scrollPercent >= 5 }"
     @click="scrollToTop"
   >
@@ -18,7 +18,7 @@
         cy="30" 
         r="25" 
         fill="none" 
-        stroke="rgba(0, 255, 136, 0.2)" 
+        stroke="rgba(34, 197, 94, 0.2)" 
         stroke-width="2"
       />
       <circle 
@@ -26,26 +26,26 @@
         cy="30" 
         r="25" 
         fill="none" 
-        stroke="#00ff88" 
+        stroke="#22c55e" 
         stroke-width="2" 
         stroke-linecap="round"
         :stroke-dasharray="circumference"
         :stroke-dashoffset="offset"
         class="transition-all duration-100 drop-shadow-lg"
-        style="filter: drop-shadow(0 0 5px rgba(0, 255, 136, 0.6))"
+        style="filter: drop-shadow(0 0 5px rgba(34, 197, 94, 0.6))"
       />
     </svg>
     
     <!-- Progress Percentage or Up Arrow -->
-    <div class="text-xs font-semibold text-primary-green z-10 flex items-center justify-center">
+    <div class="text-xs font-semibold text-green-400 z-10 flex items-center justify-center">
       <!-- Show arrow when at 100%, percentage otherwise -->
       <i 
         v-if="scrollPercent >= 100" 
-        class="fas fa-chevron-up text-primary-green text-lg animate-bounce"
+        class="fas fa-chevron-up text-green-400 text-lg animate-bounce"
       ></i>
       <span 
         v-else 
-        class="text-primary-green font-semibold"
+        class="text-green-400 font-semibold"
       >{{ Math.round(scrollPercent) }}%</span>
     </div>
   </div>

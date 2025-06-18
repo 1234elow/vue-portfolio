@@ -158,64 +158,76 @@ const createCube = () => {
       ctx.fill()
     }
     
-    // Add nebula-like glow in corners
-    const nebulaGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 200)
+    // Add nebula-like glow in corners (scaled)
+    const nebulaSize = Math.round(texSize * 0.39) // Scale nebula size (200/512)
+    const nebulaGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, nebulaSize)
     nebulaGradient.addColorStop(0, 'rgba(0, 255, 136, 0.1)')
     nebulaGradient.addColorStop(1, 'rgba(0, 255, 136, 0)')
     ctx.fillStyle = nebulaGradient
-    ctx.fillRect(0, 0, 200, 200)
+    ctx.fillRect(0, 0, nebulaSize, nebulaSize)
     
-    const nebulaGradient2 = ctx.createRadialGradient(512, 512, 0, 512, 512, 200)
+    const nebulaStart = Math.round(texSize * 0.609) // Scale position (312/512)
+    const nebulaGradient2 = ctx.createRadialGradient(texSize, texSize, 0, texSize, texSize, nebulaSize)
     nebulaGradient2.addColorStop(0, 'rgba(102, 255, 170, 0.08)')
     nebulaGradient2.addColorStop(1, 'rgba(102, 255, 170, 0)')
     ctx.fillStyle = nebulaGradient2
-    ctx.fillRect(312, 312, 200, 200)
+    ctx.fillRect(nebulaStart, nebulaStart, nebulaSize, nebulaSize)
     
-    // Holographic border effect
-    const borderGradient = ctx.createLinearGradient(0, 0, 512, 512)
+    // Holographic border effect (scaled)
+    const borderGradient = ctx.createLinearGradient(0, 0, texSize, texSize)
     borderGradient.addColorStop(0, '#00ff88')
     borderGradient.addColorStop(0.5, '#66ffaa')
     borderGradient.addColorStop(1, '#00cc6a')
     ctx.strokeStyle = borderGradient
-    ctx.lineWidth = 3
-    ctx.strokeRect(2, 2, 508, 508)
+    ctx.lineWidth = Math.round(texSize * 0.0059) // Scale line width (3/512)
+    const borderInset = Math.round(texSize * 0.0039) // Scale inset (2/512)
+    const borderSize = texSize - (borderInset * 2)
+    ctx.strokeRect(borderInset, borderInset, borderSize, borderSize)
     
-    // Inner glow with shimmer effect
+    // Inner glow with shimmer effect (scaled)
     ctx.strokeStyle = 'rgba(0, 255, 136, 0.4)'
-    ctx.lineWidth = 1
-    ctx.strokeRect(6, 6, 500, 500)
+    ctx.lineWidth = Math.round(texSize * 0.002) // Scale line width (1/512)
+    const innerInset = Math.round(texSize * 0.012) // Scale inset (6/512)
+    const innerSize = texSize - (innerInset * 2)
+    ctx.strokeRect(innerInset, innerInset, innerSize, innerSize)
     
-    // Add corner accents
+    // Add corner accents (scaled)
     ctx.strokeStyle = '#00ff88'
-    ctx.lineWidth = 2
+    ctx.lineWidth = Math.round(texSize * 0.0039) // Scale line width (2/512)
+    const cornerInset = Math.round(texSize * 0.0195) // Scale inset (10/512)
+    const cornerLength = Math.round(texSize * 0.0586) // Scale length (30/512)
+    const cornerFar = texSize - cornerInset
+    const cornerStart = cornerFar - (cornerLength - cornerInset)
+    
     // Top-left corner
     ctx.beginPath()
-    ctx.moveTo(10, 30)
-    ctx.lineTo(10, 10)
-    ctx.lineTo(30, 10)
+    ctx.moveTo(cornerInset, cornerLength)
+    ctx.lineTo(cornerInset, cornerInset)
+    ctx.lineTo(cornerLength, cornerInset)
     ctx.stroke()
     // Top-right corner
     ctx.beginPath()
-    ctx.moveTo(482, 10)
-    ctx.lineTo(502, 10)
-    ctx.lineTo(502, 30)
+    ctx.moveTo(cornerStart, cornerInset)
+    ctx.lineTo(cornerFar, cornerInset)
+    ctx.lineTo(cornerFar, cornerLength)
     ctx.stroke()
     // Bottom-left corner
     ctx.beginPath()
-    ctx.moveTo(10, 482)
-    ctx.lineTo(10, 502)
-    ctx.lineTo(30, 502)
+    ctx.moveTo(cornerInset, cornerStart)
+    ctx.lineTo(cornerInset, cornerFar)
+    ctx.lineTo(cornerLength, cornerFar)
     ctx.stroke()
     // Bottom-right corner
     ctx.beginPath()
-    ctx.moveTo(482, 502)
-    ctx.lineTo(502, 502)
-    ctx.lineTo(502, 482)
+    ctx.moveTo(cornerStart, cornerFar)
+    ctx.lineTo(cornerFar, cornerFar)
+    ctx.lineTo(cornerFar, cornerStart)
     ctx.stroke()
     
     // Icon (using Unicode symbols as fallback)
     ctx.fillStyle = '#00ff88'
-    ctx.font = 'bold 120px Arial'
+    const iconSize = Math.round(texSize * 0.234) // Scale icon size (120/512)
+    ctx.font = `bold ${iconSize}px Arial`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     
@@ -230,7 +242,8 @@ const createCube = () => {
     }
     
     const icon = iconMap[face.icon] || '⭐'
-    ctx.fillText(icon, 256, 180)
+    const iconY = Math.round(texSize * 0.352) // Scale icon Y position (180/512)
+    ctx.fillText(icon, texSize/2, iconY)
     
     // Title text with better contrast
     ctx.fillStyle = '#ffffff'  // FORCE WHITE TEXT
