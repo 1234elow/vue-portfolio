@@ -69,10 +69,10 @@ const initThreeJS = () => {
     powerPreference: isMobile ? 'low-power' : 'high-performance'
   })
   
-  // Responsive size based on device
-  const size = isMobile ? 300 : 400
+  // Responsive size based on device - match desktop quality
+  const size = isMobile ? 350 : 400
   renderer.setSize(size, size)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2))
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)) // Same quality for both
   renderer.setClearColor(0x000000, 0) // Transparent background
   
   // Disable shadows on mobile for better performance
@@ -119,8 +119,8 @@ const createCube = () => {
     }
     
     const canvas = document.createElement('canvas')
-    // Adaptive texture resolution
-    const texSize = isLowEnd ? 128 : (isMobile ? 256 : 512)
+    // Adaptive texture resolution - match desktop quality for consistency
+    const texSize = isLowEnd ? 256 : 512 // Same for mobile and desktop
     canvas.width = texSize
     canvas.height = texSize
     const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: false })
@@ -129,8 +129,8 @@ const createCube = () => {
     ctx.fillStyle = '#000000'
     ctx.fillRect(0, 0, texSize, texSize)
     
-    // Adaptive star count based on performance
-    const starCount = isLowEnd ? 8 : (isMobile ? 15 : 30)
+    // Adaptive star count based on performance - match desktop for consistency
+    const starCount = isLowEnd ? 20 : 30 // Same for mobile and desktop
     
     // Batch star rendering for better performance
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
@@ -552,12 +552,14 @@ onUnmounted(() => {
 /* Mobile-specific cube optimizations */
 @media (max-width: 768px) {
   .threejs-cube-container {
-    height: 300px !important;
+    height: 350px !important;
     margin: 2rem auto;
   }
   
   .threejs-canvas canvas {
-    box-shadow: 0 15px 30px rgba(0, 255, 136, 0.3);
+    width: 350px !important;
+    height: 350px !important;
+    box-shadow: 0 20px 40px rgba(0, 255, 136, 0.2);
   }
 }
 </style>

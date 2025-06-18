@@ -62,17 +62,26 @@ const offset = computed(() => {
 })
 
 let scrollTicking = false
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
 
 const updateProgress = () => {
-  const scrollTop = window.pageYOffset
+  const scrollTop = window.pageYOffset || document.documentElement.scrollTop
   const docHeight = document.documentElement.scrollHeight - window.innerHeight
-  scrollPercent.value = Math.max(0, Math.min(100, (scrollTop / docHeight) * 100))
+  const newPercent = Math.max(0, Math.min(100, (scrollTop / docHeight) * 100))
+  
+  // Direct update for mobile for better responsiveness
+  scrollPercent.value = newPercent
   scrollTicking = false
 }
 
 const handleScroll = () => {
   if (!scrollTicking) {
-    requestAnimationFrame(updateProgress)
+    // Use direct update on mobile for better responsiveness
+    if (isMobile) {
+      updateProgress()
+    } else {
+      requestAnimationFrame(updateProgress)
+    }
     scrollTicking = true
   }
 }
@@ -85,11 +94,12 @@ const scrollToTop = () => {
 }
 
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll)
+  // Add passive listener for better mobile performance
+  window.addEventListener('scroll', handleScroll, { passive: true })
   updateProgress() // Initial call
 })
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('scroll', handleScroll, { passive: true })
 })
 </script>

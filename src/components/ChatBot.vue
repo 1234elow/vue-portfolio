@@ -27,21 +27,30 @@
 
       <!-- Messages Container -->
       <div class="chat-messages flex-1 p-4 overflow-y-auto space-y-3" ref="messagesContainer">
-        <div v-for="message in messages" :key="message.id" 
-             :class="['message', message.type === 'user' ? 'user-message' : 'ai-message']">
-          <div class="message-content p-3 rounded-lg max-w-[85%]" 
-               :class="message.type === 'user' ? 'bg-blue-500 text-white ml-auto' : 'bg-primary-green/20 text-white border border-primary-green/30'">
-            {{ message.content }}
-          </div>
+        <!-- Loading State -->
+        <div v-if="isLoading" class="flex flex-col items-center justify-center h-full">
+          <div class="loading-spinner w-8 h-8 border-2 border-primary-green/30 border-t-primary-green rounded-full animate-spin mb-4"></div>
+          <p class="text-white text-center">Loading AI Assistant...</p>
         </div>
         
-        <!-- Typing Indicator -->
-        <div v-if="isTyping" class="ai-message">
-          <div class="message-content p-3 rounded-lg max-w-[85%] bg-primary-green/20 text-white border border-primary-green/30">
-            <div class="typing-indicator flex space-x-1">
-              <div class="dot w-2 h-2 bg-primary-green rounded-full animate-bounce"></div>
-              <div class="dot w-2 h-2 bg-primary-green rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-              <div class="dot w-2 h-2 bg-primary-green rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+        <!-- Messages -->
+        <div v-else>
+          <div v-for="message in messages" :key="message.id" 
+               :class="['message', message.type === 'user' ? 'user-message' : 'ai-message']">
+            <div class="message-content p-3 rounded-lg max-w-[85%]" 
+                 :class="message.type === 'user' ? 'bg-blue-500 text-white ml-auto' : 'bg-primary-green/20 text-white border border-primary-green/30'">
+              {{ message.content }}
+            </div>
+          </div>
+          
+          <!-- Typing Indicator -->
+          <div v-if="isTyping" class="ai-message">
+            <div class="message-content p-3 rounded-lg max-w-[85%] bg-primary-green/20 text-white border border-primary-green/30">
+              <div class="typing-indicator flex space-x-1">
+                <div class="dot w-2 h-2 bg-primary-green rounded-full animate-bounce"></div>
+                <div class="dot w-2 h-2 bg-primary-green rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                <div class="dot w-2 h-2 bg-primary-green rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -53,12 +62,13 @@
           <input 
             v-model="newMessage"
             @keyup.enter="sendMessage"
+            :disabled="isLoading || !chatInitialized"
             placeholder="Ask me about Samuel's work..."
-            class="flex-1 bg-black/40 border border-primary-green/30 rounded-lg px-3 py-2 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green"
+            class="flex-1 bg-black/40 border border-primary-green/30 rounded-lg px-3 py-2 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green disabled:opacity-50"
           />
           <button 
             @click="sendMessage"
-            :disabled="!newMessage.trim() || isTyping"
+            :disabled="!newMessage.trim() || isTyping || isLoading || !chatInitialized"
             class="bg-primary-green hover:bg-primary-green/80 disabled:opacity-50 disabled:cursor-not-allowed text-black p-2 rounded-lg transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
@@ -77,20 +87,22 @@ const isOpen = ref(false)
 const newMessage = ref('')
 const isTyping = ref(false)
 const messagesContainer = ref(null)
-const messages = ref([
-  {
-    id: 1,
-    type: 'ai',
-    content: '👋 Hi! I\'m Samuel\'s AI assistant from Barbados! Ask me about his skills, projects, contact info, or type "help" to see all I can do! 🌴'
-  }
-])
+const chatInitialized = ref(false)
+const isLoading = ref(false)
+const isMobile = ref(false)
+const messages = ref([])
 
-let messageId = 2
+let messageId = 1
 
 const toggleChat = () => {
-  isOpen.value = !isOpen.value
-  if (isOpen.value) {
+  if (!isOpen.value) {
+    isOpen.value = true
+    if (!chatInitialized.value) {
+      initializeChat()
+    }
     nextTick(() => scrollToBottom())
+  } else {
+    isOpen.value = false
   }
 }
 
@@ -365,8 +377,37 @@ const getAIResponse = (input) => {
   return defaultResponses[Math.floor(Math.random() * defaultResponses.length)]
 }
 
+const initializeChat = async () => {
+  if (chatInitialized.value) return
+  
+  isLoading.value = true
+  
+  // Simulate loading time for mobile (actual AI functionality would load here)
+  if (isMobile.value) {
+    await new Promise(resolve => setTimeout(resolve, 800))
+  }
+  
+  // Initialize messages
+  messages.value.push({
+    id: messageId++,
+    type: 'ai',
+    content: '👋 Hi! I\'m Samuel\'s AI assistant from Barbados! Ask me about his skills, projects, contact info, or type "help" to see all I can do! 🌴'
+  })
+  
+  chatInitialized.value = true
+  isLoading.value = false
+  
+  nextTick(() => scrollToBottom())
+}
+
 onMounted(() => {
-  scrollToBottom()
+  // Detect mobile
+  isMobile.value = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
+  
+  // On desktop, initialize immediately for better UX
+  if (!isMobile.value) {
+    initializeChat()
+  }
 })
 </script>
 
@@ -420,6 +461,15 @@ onMounted(() => {
 
 .chat-messages::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 255, 136, 0.5);
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* Mobile-specific optimizations */

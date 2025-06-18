@@ -171,10 +171,15 @@ body {
     animation-duration: 6s;
   }
   
-  /* Ensure shimmer works on mobile - lighter for performance */
+  /* Ensure shimmer works on mobile - force hardware acceleration */
   .animate-shimmer {
-    animation: shimmer 3s infinite;
-    will-change: transform;
+    animation: shimmer 2s infinite !important;
+    -webkit-animation: shimmer 2s infinite !important;
+    will-change: transform, opacity;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 }
 
@@ -267,4 +272,7 @@ body {
 .animate-shimmer {
   animation: shimmer 2s infinite;
   will-change: transform, opacity;
+  -webkit-animation: shimmer 2s infinite;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
