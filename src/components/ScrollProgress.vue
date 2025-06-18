@@ -1,14 +1,40 @@
 <template>
   <!-- Top Progress Bar -->
   <div 
-    class="fixed top-0 left-0 h-1 bg-gradient-to-r from-green-400 to-green-300 shadow-lg shadow-green-400/50 z-[1001] transition-all duration-100"
-    :style="{ width: `${scrollPercent}%` }"
+    :style="{ 
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      height: '4px',
+      width: scrollPercent > 0 ? `${scrollPercent}%` : '0%',
+      background: 'linear-gradient(to right, #22c55e, #16a34a)',
+      boxShadow: '0 0 10px rgba(34, 197, 94, 0.5)',
+      zIndex: '1001',
+      transition: 'width 0.1s ease-out',
+      minWidth: scrollPercent > 0 ? '8px' : '0px'
+    }"
   ></div>
 
   <!-- Circular Progress Indicator -->
   <div 
-    class="fixed bottom-8 right-8 w-16 h-16 bg-gray-800/90 rounded-full flex items-center justify-center border-2 border-green-400/30 backdrop-blur-lg cursor-pointer z-[999] transition-all duration-300 hover:scale-110 hover:border-green-400 hover:shadow-lg hover:shadow-green-400/40"
-    :class="{ 'opacity-0 translate-y-5': scrollPercent < 5, 'opacity-100 translate-y-0': scrollPercent >= 5 }"
+    v-show="scrollPercent > 10"
+    :style="{
+      position: 'fixed',
+      bottom: '32px',
+      right: '32px',
+      width: '64px',
+      height: '64px',
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(31, 41, 55, 0.9)',
+      border: '2px solid rgba(34, 197, 94, 0.3)',
+      cursor: 'pointer',
+      zIndex: '999',
+      transition: 'all 0.3s ease',
+      backdropFilter: 'blur(12px)'
+    }"
     @click="scrollToTop"
   >
     <!-- SVG Progress Circle -->
@@ -61,29 +87,27 @@ const offset = computed(() => {
   return circumference - (scrollPercent.value / 100) * circumference
 })
 
-let scrollTicking = false
-const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
-
 const updateProgress = () => {
-  const scrollTop = window.pageYOffset || document.documentElement.scrollTop
-  const docHeight = document.documentElement.scrollHeight - window.innerHeight
-  const newPercent = Math.max(0, Math.min(100, (scrollTop / docHeight) * 100))
+  const scrollTop = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0
+  const docHeight = Math.max(
+    document.body.scrollHeight,
+    document.body.offsetHeight,
+    document.documentElement.clientHeight,
+    document.documentElement.scrollHeight,
+    document.documentElement.offsetHeight
+  ) - window.innerHeight
   
-  // Direct update for mobile for better responsiveness
+  if (docHeight <= 0) {
+    scrollPercent.value = 0
+    return
+  }
+  
+  const newPercent = Math.max(0, Math.min(100, (scrollTop / docHeight) * 100))
   scrollPercent.value = newPercent
-  scrollTicking = false
 }
 
 const handleScroll = () => {
-  if (!scrollTicking) {
-    // Use direct update on mobile for better responsiveness
-    if (isMobile) {
-      updateProgress()
-    } else {
-      requestAnimationFrame(updateProgress)
-    }
-    scrollTicking = true
-  }
+  updateProgress()
 }
 
 const scrollToTop = () => {
@@ -94,12 +118,15 @@ const scrollToTop = () => {
 }
 
 onMounted(() => {
-  // Add passive listener for better mobile performance
   window.addEventListener('scroll', handleScroll, { passive: true })
-  updateProgress() // Initial call
+  window.addEventListener('resize', updateProgress, { passive: true })
+  
+  // Initial call with slight delay to ensure DOM is ready
+  setTimeout(updateProgress, 100)
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll, { passive: true })
+  window.removeEventListener('resize', updateProgress, { passive: true })
 })
 </script>
