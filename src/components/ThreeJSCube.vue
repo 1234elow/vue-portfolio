@@ -69,10 +69,10 @@ const initThreeJS = () => {
     powerPreference: isMobile ? 'low-power' : 'high-performance'
   })
   
-  // Responsive size based on device - more consistent sizing
-  const size = isMobile ? 320 : 400
+  // Responsive size based on device
+  const size = isMobile ? 300 : 400
   renderer.setSize(size, size)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 2 : 2))
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2))
   renderer.setClearColor(0x000000, 0) // Transparent background
   
   // Disable shadows on mobile for better performance
@@ -119,8 +119,8 @@ const createCube = () => {
     }
     
     const canvas = document.createElement('canvas')
-    // Adaptive texture resolution - higher quality on mobile for consistency
-    const texSize = isLowEnd ? 256 : (isMobile ? 512 : 512)
+    // Adaptive texture resolution
+    const texSize = isLowEnd ? 128 : (isMobile ? 256 : 512)
     canvas.width = texSize
     canvas.height = texSize
     const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: false })
@@ -129,8 +129,8 @@ const createCube = () => {
     ctx.fillStyle = '#000000'
     ctx.fillRect(0, 0, texSize, texSize)
     
-    // Adaptive star count based on performance - more stars on mobile for visual consistency
-    const starCount = isLowEnd ? 15 : (isMobile ? 25 : 30)
+    // Adaptive star count based on performance
+    const starCount = isLowEnd ? 8 : (isMobile ? 15 : 30)
     
     // Batch star rendering for better performance
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
@@ -552,19 +552,11 @@ onUnmounted(() => {
 /* Mobile-specific cube optimizations */
 @media (max-width: 768px) {
   .threejs-cube-container {
-    height: 320px !important;
+    height: 300px !important;
     margin: 2rem auto;
   }
   
-  .threejs-canvas {
-    width: 320px;
-    height: 320px;
-    margin: 0 auto;
-  }
-  
   .threejs-canvas canvas {
-    width: 320px !important;
-    height: 320px !important;
     box-shadow: 0 15px 30px rgba(0, 255, 136, 0.3);
   }
 }

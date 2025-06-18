@@ -171,12 +171,10 @@ body {
     animation-duration: 6s;
   }
   
-  /* Ensure shimmer works on mobile */
+  /* Ensure shimmer works on mobile - lighter for performance */
   .animate-shimmer {
-    animation: shimmer 2.5s infinite;
-    animation-duration: 2.5s;
-    -webkit-animation: shimmer 2.5s infinite;
-    -webkit-animation-duration: 2.5s;
+    animation: shimmer 3s infinite;
+    will-change: transform;
   }
 }
 
@@ -218,9 +216,9 @@ body {
 }
 
 @keyframes shimmer {
-  0% { transform: translateX(-20px); opacity: 0; }
-  50% { opacity: 1; }
-  100% { transform: translateX(20px); opacity: 0; }
+  0% { transform: translateX(-10px); opacity: 0; }
+  50% { opacity: 0.8; }
+  100% { transform: translateX(10px); opacity: 0; }
 }
 
 @keyframes rotateCube {

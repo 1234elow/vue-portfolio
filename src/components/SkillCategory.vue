@@ -28,9 +28,9 @@
               transition: 'transform 0.3s ease'
             }"
           >
-            <!-- Shimmer effect - only show after bar is completely filled -->
+            <!-- Shimmer effect - show after bar starts filling -->
             <div 
-              v-if="skill.currentWidth >= skill.level"
+              v-if="skill.currentWidth > 5"
               class="absolute top-0 right-0 w-5 h-full bg-gradient-to-r from-transparent to-white/30 rounded-full animate-shimmer"
             ></div>
           </div>
