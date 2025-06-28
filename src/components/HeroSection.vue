@@ -48,7 +48,7 @@
           
           <!-- Profile Photo -->
           <img 
-            src="/profile-photo.jpg" 
+            src="/profile-photo-new.jpg" 
             alt="Samuel Lowe - Software Engineer" 
             class="profile-photo w-60 h-60 rounded-full object-cover object-top border-4 border-primary-green shadow-2xl shadow-primary-green/40 relative z-20 hover:scale-105 transition-transform duration-300"
             loading="lazy"
